@@ -29,22 +29,24 @@ entity streamtest is
 
     generic (
         -- System clock frequency in Hz.
-        sysfreq:    real;
+        sysfreq:    integer := 100000000;
 
         -- txclk frequency in Hz (if tximpl = impl_fast).
-        txclkfreq:  real;
+        txclkfreq:  integer := 10000000;
 
         -- 2-log of division factor from system clock freq to timecode freq.
         tickdiv:    integer range 12 to 24 := 20;
 
         -- Receiver front-end implementation.
-        rximpl:     spw_implementation_type := impl_generic;
+        -- rximpl:         spw_implementation_type := impl_generic;
+        RXIMPL_GUI : string := "generic";
 
         -- Maximum number of bits received per system clock (impl_fast only).
         rxchunk:    integer range 1 to 4 := 1;
 
         -- Transmitter implementation.
-        tximpl:     spw_implementation_type := impl_generic;
+        -- tximpl:     spw_implementation_type := impl_generic;
+        TXIMPL_GUI : string := "generic";
 
         -- Size of receive FIFO.
         rxfifosize_bits: integer range 6 to 14 := 11;
@@ -113,6 +115,20 @@ entity streamtest is
 end entity streamtest;
 
 architecture streamtest_arch of streamtest is
+
+    -- 1. Define the function in the declarative region
+    function get_spw_impl(gui_val : string) return spw_implementation_type is
+    begin
+        if gui_val = "fast" then
+            return impl_fast;
+        else
+            return impl_generic;
+        end if;
+    end function;
+    
+    -- 2. Call the function to initialize the constants
+    constant tximpl : spw_implementation_type := get_spw_impl(TXIMPL_GUI);
+    constant rximpl : spw_implementation_type := get_spw_impl(RXIMPL_GUI);
 
     -- Update 16-bit maximum length LFSR by 8 steps
     function lfsr16(x: in std_logic_vector) return std_logic_vector is

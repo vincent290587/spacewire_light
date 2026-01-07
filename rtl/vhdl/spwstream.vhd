@@ -27,22 +27,24 @@ entity spwstream is
         -- This must be set to the frequency of "clk". It is used to setup
         -- counters for reset timing, disconnect timeout and to transmit
         -- at 10 Mbit/s during the link handshake.
-        sysfreq:        real;
+        sysfreq:        integer := 100000000;
 
         -- Transmit clock frequency in Hz (only if tximpl = impl_fast).
         -- This must be set to the frequency of "txclk". It is used to
         -- transmit at 10 Mbit/s during the link handshake.
-        txclkfreq:      real := 0.0;
+        txclkfreq:      integer := 10000000;
 
         -- Selection of a receiver front-end implementation.
-        rximpl:         spw_implementation_type := impl_generic;
+        -- rximpl:         spw_implementation_type := impl_generic;
+        RXIMPL_GUI : string := "generic";
 
         -- Maximum number of bits received per system clock
         -- (must be 1 in case of impl_generic).
         rxchunk:        integer range 1 to 4 := 1;
 
         -- Selection of a transmitter implementation.
-        tximpl:         spw_implementation_type := impl_generic;
+        -- tximpl:         spw_implementation_type := impl_generic;
+        TXIMPL_GUI : string := "generic";
 
         -- Size of the receive FIFO as the 2-logarithm of the number of bytes.
         -- Must be at least 6 (64 bytes).
@@ -187,24 +189,37 @@ entity spwstream is
 end entity spwstream;
 
 architecture spwstream_arch of spwstream is
+    -- 1. Define the function in the declarative region
+    function get_spw_impl(gui_val : string) return spw_implementation_type is
+    begin
+        if gui_val = "fast" then
+            return impl_fast;
+        else
+            return impl_generic;
+        end if;
+    end function;
+    
+    -- 2. Call the function to initialize the constants
+    constant tximpl : spw_implementation_type := get_spw_impl(TXIMPL_GUI);
+    constant rximpl : spw_implementation_type := get_spw_impl(RXIMPL_GUI);
 
     -- Convert boolean to std_logic.
     type bool_to_logic_type is array(boolean) of std_ulogic;
     constant bool_to_logic: bool_to_logic_type := (false => '0', true => '1');
 
     -- Reset time (6.4 us) in system clocks
-    constant reset_time:        integer := integer(sysfreq * 6.4e-6);
+    constant reset_time:        integer := integer(real(sysfreq) * 6.4e-6);
 
     -- Disconnect time (850 ns) in system clocks
-    constant disconnect_time:   integer := integer(sysfreq * 850.0e-9);
+    constant disconnect_time:   integer := integer(real(sysfreq) * 850.0e-9);
 
     -- Initial tx clock scaler (10 Mbit).
-    type impl_to_real_type is array(spw_implementation_type) of real;
+    type impl_to_real_type is array(spw_implementation_type) of integer;
     constant tximpl_to_txclk_freq: impl_to_real_type :=
         (impl_generic => sysfreq, impl_fast => txclkfreq);
-    constant effective_txclk_freq: real := tximpl_to_txclk_freq(tximpl);
+    constant effective_txclk_freq: integer := tximpl_to_txclk_freq(tximpl);
     constant default_divcnt:    std_logic_vector(7 downto 0) :=
-        std_logic_vector(to_unsigned(integer(effective_txclk_freq / 10.0e6 - 1.0), 8));
+        std_logic_vector(to_unsigned(integer(real(effective_txclk_freq) / 10.0e6 - 1.0), 8));
 
     -- Registers.
     type regs_type is record
